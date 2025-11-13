@@ -10,7 +10,7 @@
     let
       # Overlay that can be imported into other flakes
       overlay = final: prev: {
-        calc-tee-pcrs-rtmr = final.callPackage ./. { };
+        calc-tee-pcrs-rtmr = mkPackage final;
       };
 
       # Function to create the package for a given system
@@ -34,38 +34,39 @@
         };
       };
     in
-    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ overlay ];
-        };
-      in
-      {
-        packages = {
-          default = mkPackage pkgs;
-          calc-tee-pcrs-rtmr = mkPackage pkgs;
-        };
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ]
+      (system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ overlay ];
+          };
+        in
+        {
+          packages = {
+            default = mkPackage pkgs;
+            calc-tee-pcrs-rtmr = mkPackage pkgs;
+          };
 
-        # Development shell with Rust toolchain
-        devShells.default = pkgs.mkShell {
-          inputsFrom = [ (mkPackage pkgs) ];
-          packages = with pkgs; [
-            rustc
-            cargo
-            rustfmt
-            clippy
-            rust-analyzer
-          ];
-        };
+          # Development shell with Rust toolchain
+          devShells.default = pkgs.mkShell {
+            inputsFrom = [ (mkPackage pkgs) ];
+            packages = with pkgs; [
+              rustc
+              cargo
+              rustfmt
+              clippy
+              rust-analyzer
+            ];
+          };
 
-        # Allow running the package directly with `nix run`
-        apps.default = {
-          type = "app";
-          program = "${self.packages.${system}.default}/bin/calc-tee-pcrs-rtmr";
-        };
-      }
-    ) // {
+          # Allow running the package directly with `nix run`
+          apps.default = {
+            type = "app";
+            program = "${self.packages.${system}.default}/bin/calc-tee-pcrs-rtmr";
+          };
+        }
+      ) // {
       # Make the overlay available for other flakes
       overlays.default = overlay;
     };
