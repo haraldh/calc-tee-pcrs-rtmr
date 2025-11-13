@@ -4,42 +4,59 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     let
       # Overlay that can be imported into other flakes
       overlay = final: prev: {
         calc-tee-pcrs-rtmr = mkPackage final;
       };
 
+      rustPlatform = pkgs:
+        let
+          rustVersion = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        in
+        pkgs.makeRustPlatform {
+          cargo = rustVersion;
+          rustc = rustVersion;
+        };
+
       # Function to create the package for a given system
-      mkPackage = pkgs: pkgs.rustPlatform.buildRustPackage {
-        pname = "calc-tee-pcrs-rtmr";
-        version = "1.0.0";
+      mkPackage = pkgs:
+        (rustPlatform pkgs).buildRustPackage {
+          pname = "calc-tee-pcrs-rtmr";
+          version = "1.0.0";
 
-        src = ./.;
+          src = ./.;
 
-        cargoLock = {
-          lockFile = ./Cargo.lock;
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
+
+          meta = with pkgs.lib; {
+            description = "Precompute PCR and RTMR registers for TPM and TDX";
+            homepage = "https://github.com/haraldh/calc-tee-pcrs-rtmr";
+            license = licenses.asl20;
+            maintainers = [ ];
+            mainProgram = "calc-tee-pcrs-rtmr";
+            platforms = [ "x86_64-linux" "aarch64-linux" ];
+          };
         };
-
-        meta = with pkgs.lib; {
-          description = "Precompute PCR and RTMR registers for TPM and TDX";
-          homepage = "https://github.com/haraldh/calc-tee-pcrs-rtmr";
-          license = licenses.asl20;
-          maintainers = [ ];
-          mainProgram = "calc-tee-pcrs-rtmr";
-          platforms = [ "x86_64-linux" "aarch64-linux" ];
-        };
-      };
     in
     flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ]
       (system:
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ overlay ];
+            overlays = [
+              overlay
+              (import rust-overlay)
+            ];
           };
         in
         {
@@ -52,8 +69,6 @@
           devShells.default = pkgs.mkShell {
             inputsFrom = [ (mkPackage pkgs) ];
             packages = with pkgs; [
-              rustc
-              cargo
               rustfmt
               clippy
               rust-analyzer
