@@ -7,7 +7,7 @@ authors = ["Marius Knaust <mknaust@amazon.com>", "Harald Hoyer <harald@hoyer.xyz
 # repository = "https://github.com/aws/NitroTPM-Tools"
 repository = "https://github.com/haraldh/calc-tee-pcrs-rtmr"
 readme = "README.md"
-license-file = "../LICENSE"
+license-file = "LICENSE"
 keywords = ["tpm", "pcr", "tdx", "rtmr"]
 
 [dependencies]
