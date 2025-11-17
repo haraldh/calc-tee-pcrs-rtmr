@@ -11,16 +11,16 @@ pub(crate) struct Tpm {
 #[derive(serde::Serialize, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub(crate) struct TpmDisplay {
-    pcr00: String,
-    pcr01: String,
-    pcr02: String,
-    pcr03: String,
-    pcr04: String,
-    pcr05: String,
-    pcr06: String,
-    pcr07: String,
-    pcr08: String,
-    pcr09: String,
+    pcr0: String,
+    pcr1: String,
+    pcr2: String,
+    pcr3: String,
+    pcr4: String,
+    pcr5: String,
+    pcr6: String,
+    pcr7: String,
+    pcr8: String,
+    pcr9: String,
     pcr10: String,
     pcr11: String,
     pcr12: String,
@@ -36,11 +36,11 @@ impl From<&Tpm> for TpmDisplay {
     fn from(tpm: &Tpm) -> Self {
         let null = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string();
         Self {
-            pcr04: format!("{:x}", tpm.pcr[4]),
-            pcr05: format!("{:x}", tpm.pcr[5]),
-            pcr06: format!("{:x}", tpm.pcr[6]),
-            pcr07: format!("{:x}", tpm.pcr[7]),
-            pcr08: null.clone(),
+            pcr4: format!("{:x}", tpm.pcr[4]),
+            pcr5: format!("{:x}", tpm.pcr[5]),
+            pcr6: format!("{:x}", tpm.pcr[6]),
+            pcr7: format!("{:x}", tpm.pcr[7]),
+            pcr8: null.clone(),
             pcr10: null.clone(),
             pcr11: format!("{:x}", tpm.pcr[11]),
             pcr12: null.clone(),
@@ -69,34 +69,55 @@ impl Tpm {
         }
     }
 
-    pub(crate) fn extend(&mut self, index: usize, digest: &aws_lc_rs::digest::Digest) -> anyhow::Result<()> {
+    pub(crate) fn extend(
+        &mut self,
+        index: usize,
+        digest: &aws_lc_rs::digest::Digest,
+    ) -> anyhow::Result<()> {
         if (1000..2000).contains(&index) {
             let index = index - 1000;
 
-            if index > 15 { return Ok(());}
-            if index < 4 { return Ok(());}
+            if index > 15 {
+                return Ok(());
+            }
+            if index < 4 {
+                return Ok(());
+            }
 
             log::debug!("[PCR{index}] extend with digest: {:?}", digest);
 
-            self.pcr.get_mut(index) .ok_or_else(|| anyhow::anyhow!("PCR{index} not found"))?.extend(digest);
+            self.pcr
+                .get_mut(index)
+                .ok_or_else(|| anyhow::anyhow!("PCR{index} not found"))?
+                .extend(digest);
             return Ok(());
         }
 
-        if (2000..3000).contains(&index)  {
+        if (2000..3000).contains(&index) {
             let index = index - 2000;
 
             log::debug!("[RTMR{index}] extend with digest: {:?}", digest);
 
-            self.rtmr.get_mut(index) .ok_or_else(|| anyhow::anyhow!("RTMR{index} not found"))?.extend(digest);
+            self.rtmr
+                .get_mut(index)
+                .ok_or_else(|| anyhow::anyhow!("RTMR{index} not found"))?
+                .extend(digest);
             return Ok(());
         }
 
-        if index > 15 { return Ok(());}
-        if index < 4 { return Ok(());}
+        if index > 15 {
+            return Ok(());
+        }
+        if index < 4 {
+            return Ok(());
+        }
 
         log::debug!("[PCR{index}] extend with digest: {:?}", digest);
 
-        self.pcr.get_mut(index) .ok_or_else(|| anyhow::anyhow!("PCR{index} not found"))?.extend(digest);
+        self.pcr
+            .get_mut(index)
+            .ok_or_else(|| anyhow::anyhow!("PCR{index} not found"))?
+            .extend(digest);
 
         if index == 11 {
             self.rtmr[2].extend(digest);
