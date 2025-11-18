@@ -35,7 +35,7 @@ jobs:
           git config --global --add safe.directory '*'
 
       - name: Run Nix flake check
-        run: cd /workspace/nix && nix flake check
+        run: cd /workspace/ && nix flake check
 
       - name: Build standard oracle
-        run: cd /workspace/nix && nix build -L --show-trace .#
+        run: cd /workspace/ && nix build -L --show-trace .#
