@@ -21,7 +21,12 @@ jobs:
       image: nixos/nix:2.32.1
       options: --ulimit nofile=5000:5000 --privileged
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        run: |
+          git clone https://github.com/${{ github.repository }} /workspace
+          cd /workspace
+          git fetch origin ${{ github.ref }}
+          git checkout ${{ github.sha }}
 
       - name: Setup nix
         run: |
