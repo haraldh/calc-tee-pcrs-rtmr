@@ -32,7 +32,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          nix run nixpkgs#gh -c gh auth login --with-token
           nix run nixpkgs#gh repo clone ${{ github.repository }} /workspace -- --revision=${{ github.sha }}
 
       - name: Run Nix flake check
