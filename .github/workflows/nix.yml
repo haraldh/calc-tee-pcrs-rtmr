@@ -21,18 +21,19 @@ jobs:
       image: nixos/nix:2.32.1
       options: --ulimit nofile=5000:5000 --privileged
     steps:
-      - name: Checkout repository
-        run: |
-          git clone https://github.com/${{ github.repository }} /workspace
-          cd /workspace
-          git fetch origin ${{ github.ref }}
-          git checkout ${{ github.sha }}
-
       - name: Setup nix
         run: |
           echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf
           echo 'sandbox = true' >> /etc/nix/nix.conf
+          echo 'access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}' >> /etc/nix/nix.conf
           git config --global --add safe.directory '*'
+
+      - name: Checkout repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          nix run nixpkgs#gh -c gh auth login --with-token
+          nix run nixpkgs#gh repo clone ${{ github.repository }} /workspace -- --revision=${{ github.sha }}
 
       - name: Run Nix flake check
         run: cd /workspace/ && nix flake check
