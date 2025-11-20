@@ -18,7 +18,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: nixos/nix:2.32.1
+      image: nixos/nix:2.28.5
       options: --ulimit nofile=5000:5000 --privileged
     steps:
       - name: Setup nix
@@ -37,5 +37,8 @@ jobs:
       - name: Run Nix flake check
         run: cd /workspace/ && nix flake check
 
-      - name: Build standard oracle
+      - name: Build binary
         run: cd /workspace/ && nix build -L --show-trace .#
+
+      - name: Show sha256sum of the binary
+        run: cd /workspace/ && sha256sum result/bin/*
