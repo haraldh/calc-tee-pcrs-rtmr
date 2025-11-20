@@ -1,0 +1,41 @@
+name: NIX
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, ready_for_review ]
+  push:
+    branches: [ main ]
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: nixos/nix:2.32.1
+      options: --ulimit nofile=5000:5000 --privileged
+    steps:
+      - name: Setup nix
+        run: |
+          echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf
+          echo 'sandbox = true' >> /etc/nix/nix.conf
+          echo 'access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}' >> /etc/nix/nix.conf
+          git config --global --add safe.directory '*'
+
+      - name: Checkout repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          nix run nixpkgs#gh -- repo clone ${{ github.repository }} /workspace -- --revision=${{ github.sha }}
+
+      - name: Run Nix flake check
+        run: cd /workspace/ && nix flake check
+
+      - name: Build standard oracle
+        run: cd /workspace/ && nix build -L --show-trace .#
