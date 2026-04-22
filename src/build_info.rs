@@ -6,6 +6,10 @@ use crate::pcr::Pcr;
 pub(crate) struct Tpm {
     pcr: [Pcr; 16],
     rtmr: [Pcr; 4],
+    /// Whether PCR 7 was computed from real Secure Boot inputs. Unset when
+    /// the caller passed no PK/KEK/db/dbx — in that case the extension chain
+    /// is meaningless and PCR 7 is omitted from the output.
+    pcr7_measured: bool,
 }
 
 #[derive(serde::Serialize, Default)]
@@ -35,11 +39,14 @@ pub(crate) struct TpmDisplay {
 impl From<&Tpm> for TpmDisplay {
     fn from(tpm: &Tpm) -> Self {
         let null = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string();
-        Self {
+        let mut display = Self {
             pcr4: format!("{:x}", tpm.pcr[4]),
             pcr5: format!("{:x}", tpm.pcr[5]),
-            pcr6: format!("{:x}", tpm.pcr[6]),
-            pcr7: format!("{:x}", tpm.pcr[7]),
+            // PCR 6 is "Host Platform Manufacturer Specific" — its real value
+            // depends on firmware-specific UEFI events we can't reproduce
+            // here (Hyper-V extends vendor events beyond the spec minimum),
+            // so leave it blank rather than the misleading separator-only
+            // digest.
             pcr8: null.clone(),
             pcr10: null.clone(),
             pcr11: format!("{:x}", tpm.pcr[11]),
@@ -49,7 +56,16 @@ impl From<&Tpm> for TpmDisplay {
             rtmr1: format!("{:x}", tpm.rtmr[1]),
             rtmr2: format!("{:x}", tpm.rtmr[2]),
             ..Default::default()
+        };
+        // PCR 7 is only reproducible when the caller supplies the Secure Boot
+        // variable contents (PK/KEK/db/dbx). Without them the extension chain
+        // is modelling bare unprovisioned UEFI (matches OVMF with no SB keys,
+        // but not Hyper-V which ships with MS defaults). Emit only when real
+        // inputs were provided; otherwise leave blank like PCR 6.
+        if tpm.pcr7_measured {
+            display.pcr7 = format!("{:x}", tpm.pcr[7]);
         }
+        display
     }
 }
 
@@ -66,7 +82,12 @@ impl Tpm {
         Self {
             pcr: [Pcr::new(algorithm); 16],
             rtmr: [Pcr::new(algorithm); 4],
+            pcr7_measured: false,
         }
+    }
+
+    pub(crate) fn set_pcr7_measured(&mut self, measured: bool) {
+        self.pcr7_measured = measured;
     }
 
     pub(crate) fn extend(
