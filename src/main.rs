@@ -54,6 +54,17 @@ impl SecureBootArguments {
         self.platform_key.is_some()
     }
 
+    /// True if the caller provided *any* Secure Boot variable input. Used to
+    /// decide whether PCR 7 is a meaningful output — without real PK/KEK/db/
+    /// dbx bytes the tool models an unprovisioned UEFI, which only matches
+    /// bare OVMF, not firmwares that ship with default keys (e.g. Hyper-V).
+    fn any_provided(&self) -> bool {
+        self.platform_key.is_some()
+            || self.key_exchange_key.is_some()
+            || self.signature_database.is_some()
+            || self.signature_denylist_database.is_some()
+    }
+
     fn secure_boot(&self) -> &[u8] {
         if !self.secure_boot_enabled() {
              &[]
@@ -121,6 +132,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut tpm = Tpm::new(ALGORITHM);
 
+    tpm.set_pcr7_measured(arguments.secure_boot.any_provided());
     ev_secure_boot(&mut tpm, ALGORITHM, &arguments.secure_boot, &images)?;
 
     ev_boot_efi(&mut tpm, ALGORITHM, &arguments.secure_boot, &images,&arguments.disk_image)?;
